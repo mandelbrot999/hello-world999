@@ -1,0 +1,2 @@
+$Header: svn://localhost/dtapublic/projs/dtats/trunk/projs/2018/20180707_cgi_web_tools_aux_exe/dtats_cgi_aux_arith_large/_ProjectGuid.txt 207 2018-07-15 21:50:56Z dashley $
+{ce731974-479d-4bba-b222-57f8bf668779}

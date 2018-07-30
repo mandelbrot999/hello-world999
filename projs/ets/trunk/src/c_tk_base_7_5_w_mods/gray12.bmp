@@ -1,0 +1,20 @@
+/* $Header: /IjuScripter, IjuConsole/Source/Tk Base/gray12.bmp 1     1/01/01 11:29p Dtashley $ */
+
+/* IJS_SM_FILE_PUBLIC */
+
+#define gray12_width 16
+#define gray12_height 16
+static unsigned char gray12_bits[] = {
+   0x00, 0x00, 0x22, 0x22, 0x00, 0x00, 0x88, 0x88, 0x00, 0x00, 0x22, 0x22,
+   0x00, 0x00, 0x88, 0x88, 0x00, 0x00, 0x22, 0x22, 0x00, 0x00, 0x88, 0x88,
+   0x00, 0x00, 0x22, 0x22, 0x00, 0x00, 0x88, 0x88};
+
+/* $History: gray12.bmp $
+ * 
+ * *****************  Version 1  *****************
+ * User: Dtashley     Date: 1/01/01    Time: 11:29p
+ * Created in $/IjuScripter, IjuConsole/Source/Tk Base
+ * Initial check-in.
+ */
+
+/* End of GRAY12.BMP */

@@ -1,0 +1,65 @@
+#!/bin/bash
+#-------------------------------------------------------------------------------------------------
+#$Header: svn://localhost/dtapublic/projs/dtats/trunk/projs/2016/20161029_server_scripts_automaint_cron/ref_dta_incr 71 2016-11-05 11:07:06Z dashley $
+#-------------------------------------------------------------------------------------------------
+#This file is part of "Server Scripts, Automatic Maintenance, Cron", a set of scripts for
+#performing automatic periodic maintenance on a Linux server.
+#-------------------------------------------------------------------------------------------------
+#This source code and any program in which it is compiled/used is provided under the MIT License,
+#reproduced below.
+#-------------------------------------------------------------------------------------------------
+#Permission is hereby granted, free of charge, to any person obtaining a copy of
+#this software and associated documentation files(the "Software"), to deal in the
+#Software without restriction, including without limitation the rights to use,
+#copy, modify, merge, publish, distribute, sublicense, and / or sell copies of the
+#Software, and to permit persons to whom the Software is furnished to do so,
+#subject to the following conditions :
+#
+#The above copyright notice and this permission notice shall be included in all
+#copies or substantial portions of the Software.
+#
+#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+#AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+#SOFTWARE.
+#-------------------------------------------------------------------------------------------------
+#Incremental daily backup of Dave Ashley's server content.
+#
+echo "Performing incremental daily backup of all Dave Ashley's server content.  List of directories"
+echo "and files backed up appears below."
+#
+#Make the necessary directory.
+mkdir /hl/baks/ashley_david_personal_01/incr_daily/${1}${5}${6}_${10}${13}${14}
+#
+#Tar up the content.
+tar -c -N "2 days ago" -v -z -h -f /hl/baks/ashley_david_personal_01/incr_daily/${1}${5}${6}_${10}${13}${14}/${1}${5}${6}_${10}${13}${14}.tar.gz /hb/ashley_david_personal_01/incr_daily &>/hl/baks/ashley_david_personal_01/incr_daily/${1}${5}${6}_${10}${13}${14}/${1}${5}${6}_${10}${13}${14}.full.log.txt
+#
+#Filter the content to give only the filenames.
+cat /hl/baks/ashley_david_personal_01/incr_daily/${1}${5}${6}_${10}${13}${14}/${1}${5}${6}_${10}${13}${14}.full.log.txt | grep -v ": file is unchanged; not dumped" | grep -v "tar: Treating date" | grep -v "tar: Removing leading" | sed -e '/\/$/d' >/hl/baks/ashley_david_personal_01/incr_daily/${1}${5}${6}_${10}${13}${14}/${1}${5}${6}_${10}${13}${14}.filenamesonly.log.txt
+#
+#Announce what has been done.
+echo "===== FILENAMES ONLY ====="
+cat /hl/baks/ashley_david_personal_01/incr_daily/${1}${5}${6}_${10}${13}${14}/${1}${5}${6}_${10}${13}${14}.filenamesonly.log.txt
+echo "===== ALL MESSAGES FROM TAR ====="
+cat /hl/baks/ashley_david_personal_01/incr_daily/${1}${5}${6}_${10}${13}${14}/${1}${5}${6}_${10}${13}${14}.full.log.txt
+#
+#We want to be really careful with this next section because of
+#the recursive rm.  Want to be sure the directory exists.
+if [ -d /hl/baks/ashley_david_personal_01/incr_daily/${1}${5}${6}_${10}${13}${14} ] ; then
+   cd /hl/baks/ashley_david_personal_01/incr_daily/${1}${5}${6}_${10}${13}${14}
+   split -b 650m ${1}${5}${6}_${10}${13}${14}.tar.gz
+   XFILES=`ls -1 x*`
+   for curfile in $XFILES
+   do
+      mv ${curfile} ${curfile}.bin
+   done
+   md5sum  ${1}${5}${6}_${10}${13}${14}.* x* >md5sums.txt
+   sha1sum ${1}${5}${6}_${10}${13}${14}.* x* >sha1sums.txt
+   rm ${1}${5}${6}_${10}${13}${14}.tar.gz
+   cd ..
+   rm -fR `ls -1t | sed -e '61,$!d'`
+fi
+#End of script.

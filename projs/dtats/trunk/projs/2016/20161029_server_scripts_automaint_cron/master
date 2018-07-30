@@ -1,0 +1,119 @@
+#!/bin/bash
+#-------------------------------------------------------------------------------------------------
+#$Header: svn://localhost/dtapublic/projs/dtats/trunk/projs/2016/20161029_server_scripts_automaint_cron/master 71 2016-11-05 11:07:06Z dashley $
+#-------------------------------------------------------------------------------------------------
+#This file is part of "Server Scripts, Automatic Maintenance, Cron", a set of scripts for
+#performing automatic periodic maintenance on a Linux server.
+#-------------------------------------------------------------------------------------------------
+#This source code and any program in which it is compiled/used is provided under the MIT License,
+#reproduced below.
+#-------------------------------------------------------------------------------------------------
+#Permission is hereby granted, free of charge, to any person obtaining a copy of
+#this software and associated documentation files(the "Software"), to deal in the
+#Software without restriction, including without limitation the rights to use,
+#copy, modify, merge, publish, distribute, sublicense, and / or sell copies of the
+#Software, and to permit persons to whom the Software is furnished to do so,
+#subject to the following conditions :
+#
+#The above copyright notice and this permission notice shall be included in all
+#copies or substantial portions of the Software.
+#
+#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+#AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+#SOFTWARE.
+#-------------------------------------------------------------------------------------------------
+#Master script for synthetic (custom) automatic maintenance of server.
+#Runs every hour.  Paradigm is that cannot run if already running,
+#so must block concurrent executions.
+#
+#If the file with information about the battery status doesn't exist, cannot continue.
+if [ -f /sys/class/power_supply/BAT1/capacity ] ; then
+   #
+   #If the file contains unfavorable information, cannot continue.
+   if [ `cat /sys/class/power_supply/BAT1/capacity` -gt 60 ] ; then
+      #
+      if [ ! -f /etc/cron.custom/lockfiles/auto_maint_cron_lock ] ; then
+         #If we're here, the lockfile does not exist, and we are clear
+         #to do the maintenance cron.
+         #
+         #Create the lockfile.  This way, if we're invoked again
+         #while still running, will bail.
+         touch /etc/cron.custom/lockfiles/auto_maint_cron_lock
+         #
+         #Change to a safe working directory in case something goes wrong,
+         #especially a failed cd followed by a mass delete.
+         cd /root/cronjob_sandbox
+         #
+         #Gather required date information for exec'ing children.  To avoid
+         #complexity, can use the lock file for the timestamp.
+         DATE_YEAR4=`date --reference=/etc/cron.custom/lockfiles/auto_maint_cron_lock +%Y`
+         DATE_YEAR2=`date --reference=/etc/cron.custom/lockfiles/auto_maint_cron_lock +%y`
+         DATE_MONTH_LONG=`date --reference=/etc/cron.custom/lockfiles/auto_maint_cron_lock +%B`
+         DATE_MONTH_SHORT=`date --reference=/etc/cron.custom/lockfiles/auto_maint_cron_lock +%b`
+         DATE_MONTH2=`date --reference=/etc/cron.custom/lockfiles/auto_maint_cron_lock +%m`
+         DATE_DOM2=`date --reference=/etc/cron.custom/lockfiles/auto_maint_cron_lock +%d`
+         DATE_DOW_LONG=`date --reference=/etc/cron.custom/lockfiles/auto_maint_cron_lock +%A`
+         DATE_DOW_SHORT=`date --reference=/etc/cron.custom/lockfiles/auto_maint_cron_lock +%a`
+         DATE_DOW_DIGIT=`date --reference=/etc/cron.custom/lockfiles/auto_maint_cron_lock +%w`
+         DATE_HOUR_24=`date --reference=/etc/cron.custom/lockfiles/auto_maint_cron_lock +%H`
+         DATE_HOUR_12=`date --reference=/etc/cron.custom/lockfiles/auto_maint_cron_lock +%I`
+         DATE_AM_PM=`date --reference=/etc/cron.custom/lockfiles/auto_maint_cron_lock +%p`
+         DATE_MIN2=`date --reference=/etc/cron.custom/lockfiles/auto_maint_cron_lock +%M`
+         DATE_SEC2=`date --reference=/etc/cron.custom/lockfiles/auto_maint_cron_lock +%S`
+         #
+         #Run child script, sending both standard output and standard error to the temporary
+	 #log file.
+         #
+         #The parameters passed to the child are, in order:
+         #    1)Year (4-digit)
+         #    2)Year (2-digit)
+         #    3)Month (long text)
+         #    4)Month (short text)
+         #    5)Month (2-digit)
+         #    6)Day of month (2-digit)
+         #    7)Day of week (long text)
+         #    8)Day of week (short text)
+         #    9)Day of week (single digit)
+         #   10)Hour (24-hour, 2-digit)
+         #   11)Hour (12-hour, 2-digit)
+         #   12)AM or PM, as a text string
+         #   13)Minutes (2-digit)
+         #   14)Seconds (2-digit)
+         #
+         nice /etc/cron.custom/scripts/master_logged ${DATE_YEAR4} ${DATE_YEAR2} ${DATE_MONTH_LONG} ${DATE_MONTH_SHORT} ${DATE_MONTH2} ${DATE_DOM2} ${DATE_DOW_LONG} ${DATE_DOW_SHORT} ${DATE_DOW_DIGIT} ${DATE_HOUR_24} ${DATE_HOUR_12} ${DATE_AM_PM} ${DATE_MIN2} ${DATE_SEC2} &>/hl/logs/maint_auto_root/log_in_progress.txt   
+         #
+         #Change to a safe working directory in case something goes wrong,
+         #especially a failed cd followed by a mass delete.
+         cd /root/cronjob_sandbox
+         #
+         #Do an atomic move to replace the file that Apache can serve.
+	 #The presumed atomic move below should prevent any race conditions
+         #with Apache.  My understanding of Unix is that if the log file is open and another file
+         #is moved on top of it, it will stay available until it is closed.  The
+	 #atomic move should be SSD-friendly.
+         mv -f /hl/logs/maint_auto_root/log_in_progress.txt /hl/logs/maint_auto_root/${DATE_YEAR4}${DATE_MONTH2}${DATE_DOM2}_${DATE_HOUR_24}${DATE_MIN2}${DATE_SEC2}.txt
+         #
+         #We want to be really careful with this next section because of
+         #the recursive rm.  Want to be sure the directory exists.
+	 #
+	 #Maintain about 90 days worth of logs.  24*90=2160.
+         if [ -d /hl/logs/maint_auto_root ] ; then
+            cd /hl/logs/maint_auto_root
+            rm -f `ls -1t | sed -e '2161,$!d'`
+            cd /root/cronjob_sandbox
+         fi
+         #
+         #Change to a safe working directory in case something goes wrong,
+         #especially a failed cd followed by a mass delete.
+         cd /root/cronjob_sandbox
+         #
+         #Remove the lock file.
+         rm /etc/cron.custom/lockfiles/auto_maint_cron_lock
+      fi
+   fi
+fi
+#End of script.

@@ -1,0 +1,20 @@
+/* $Header: /IjuScripter, IjuConsole/Source/Tk Base/gray50.bmp 1     1/01/01 11:30p Dtashley $ */
+
+/* IJS_SM_FILE_PUBLIC */
+
+#define gray50_width 16
+#define gray50_height 16
+static unsigned char gray50_bits[] = {
+   0x55, 0x55, 0xaa, 0xaa, 0x55, 0x55, 0xaa, 0xaa, 0x55, 0x55, 0xaa, 0xaa,
+   0x55, 0x55, 0xaa, 0xaa, 0x55, 0x55, 0xaa, 0xaa, 0x55, 0x55, 0xaa, 0xaa,
+   0x55, 0x55, 0xaa, 0xaa, 0x55, 0x55, 0xaa, 0xaa};
+
+/* $History: gray50.bmp $
+ * 
+ * *****************  Version 1  *****************
+ * User: Dtashley     Date: 1/01/01    Time: 11:30p
+ * Created in $/IjuScripter, IjuConsole/Source/Tk Base
+ * Initial check-in.
+ */
+
+/* End of GRAY50.BMP */

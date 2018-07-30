@@ -1,0 +1,167 @@
+#!/bin/bash
+#-------------------------------------------------------------------------------------------------
+#$Header: svn://localhost/dtapublic/projs/dtats/trunk/projs/2016/20161029_server_scripts_automaint_cron/backup_ashley_david_pers_full 137 2017-06-14 02:03:18Z dashley $
+#-------------------------------------------------------------------------------------------------
+#This file is part of "Server Scripts, Automatic Maintenance, Cron", a set of scripts for
+#performing automatic periodic maintenance on a Linux server.
+#-------------------------------------------------------------------------------------------------
+#This source code and any program in which it is compiled/used is provided under the MIT License,
+#reproduced below.
+#-------------------------------------------------------------------------------------------------
+#Permission is hereby granted, free of charge, to any person obtaining a copy of
+#this software and associated documentation files(the "Software"), to deal in the
+#Software without restriction, including without limitation the rights to use,
+#copy, modify, merge, publish, distribute, sublicense, and / or sell copies of the
+#Software, and to permit persons to whom the Software is furnished to do so,
+#subject to the following conditions :
+#
+#The above copyright notice and this permission notice shall be included in all
+#copies or substantial portions of the Software.
+#
+#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+#AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+#SOFTWARE.
+#-------------------------------------------------------------------------------------------------
+#Full monthly backup Dave Ashley's server content.
+#
+echo "Performing full backup of all Dave Ashley's server content."
+#
+#Change to a safe working directory in case something goes wrong,
+#especially a failed cd followed by a mass delete.
+cd /root/cronjob_sandbox
+#
+#Remove the existing old backup.  This is because don't have the storage and don't want to purchase
+#a new SSD, so delete the old before making the new.
+rm -fR /hl/baks/ashley_david_personal_01/full_monthly/*
+#
+#Make the main directory for all backup content.
+mkdir /hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}
+#
+#Make the sub-directory for the full backup.
+mkdir /hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/full
+#
+#Make MD5 message digests of everything we intend to tar up in the main backup.
+find -L /hb/ashley_david_personal_01/full_monthly -type f -exec md5sum '{}' \; &>/hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/full/${1}${5}${6}_${10}${13}${14}.files.md5sum.txt
+#
+#Make SHA512 message digests of everything we intend to tar up in the main backup.
+find -L /hb/ashley_david_personal_01/full_monthly -type f -exec sha512sum '{}' \; &>/hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/full/${1}${5}${6}_${10}${13}${14}.files.sha512sum.txt
+#
+#Tar up everything in the main backup except for the backup symlinks themselves.
+tar -c -v -z -h -f /hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/full/${1}${5}${6}_${10}${13}${14}.files.tar.gz /hb/ashley_david_personal_01/full_monthly &>/hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/full/${1}${5}${6}_${10}${13}${14}.files.log.txt
+#
+#Tar up the main backup symlinks.
+tar -c -v -z -f /hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/full/${1}${5}${6}_${10}${13}${14}.symlinks.tar.gz /hb/ashley_david_personal_01/full_monthly &>/hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/full/${1}${5}${6}_${10}${13}${14}.symlinks.log.txt
+#
+#Emit the main backup file MD5s to stdout so they go in the larger log.
+echo "===== FILE MD5 MESSAGE DIGESTS ====="
+cat /hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/full/${1}${5}${6}_${10}${13}${14}.files.md5sum.txt
+#
+#Emit the main backup file SHA512s to stdout so they go in the larger log.
+echo "===== FILE SHA512 MESSAGE DIGESTS ====="
+cat /hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/full/${1}${5}${6}_${10}${13}${14}.files.sha512sum.txt
+#
+#Emit the main backup log files to stdout so they go in the larger log.
+echo "===== FILES ====="
+cat /hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/full/${1}${5}${6}_${10}${13}${14}.files.log.txt
+#
+#Emit the main backup symlink backup log files to stdout so they go in the larger log.
+echo "===== SYMLINKS ====="
+cat /hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/full/${1}${5}${6}_${10}${13}${14}.symlinks.log.txt
+#
+#We want to be really careful with this next section because of
+#the recursive rm.  Want to be sure the directory exists.
+if [ -d /hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/full ] ; then
+   cd /hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/full
+   split -b 1000m ${1}${5}${6}_${10}${13}${14}.files.tar.gz
+   XFILES=`ls -1 x*`
+   for curfile in $XFILES
+   do
+      mv ${curfile} ${curfile}.bin
+   done
+   md5sum  ${1}${5}${6}_${10}${13}${14}.* x* >md5sums.txt
+   sha512sum ${1}${5}${6}_${10}${13}${14}.* x* >sha512sums.txt
+   rm ${1}${5}${6}_${10}${13}${14}.files.tar.gz
+   #
+   #Emit the backup file MD5s to stdout so they go in the larger log.
+   echo "===== BACKUP FILE MD5 MESSAGE DIGESTS ====="
+   cat md5sums.txt
+   #
+   #Emit the backup file SHA512s to stdout so they go in the larger log.
+   echo "===== BACKUP FILE SHA512 MESSAGE DIGESTS ====="
+   cat sha512sums.txt
+   #
+   #Commented out because now deleting old before making new.  There will
+   #be only one directory.
+   #cd ..
+   #rm -fR `ls -1t | sed -e '2,$!d'`
+fi
+#
+#Change to a safe working directory in case something goes wrong,
+#especially a failed cd followed by a mass delete.
+cd /root/cronjob_sandbox
+#
+#Make the sub-directory for svn repository backups.
+mkdir /hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/svn
+#
+#Make the sub-directory for svn repository backups of svn repository "dtapublic".
+mkdir /hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/svn/dtapublic
+#
+#Make MD5 message digests of everything in the repository "dtapublic".
+find -L /hl/svnroots/dtapublic -type f -exec md5sum '{}' \; &>/hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/svn/dtapublic/${1}${5}${6}_${10}${13}${14}.files.md5sum.txt
+#
+#Make SHA512 message digests of everything in the repository "dtapublic".
+find -L /hl/svnroots/dtapublic -type f -exec sha512sum '{}' \; &>/hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/svn/dtapublic/${1}${5}${6}_${10}${13}${14}.files.sha512sum.txt
+#
+#Tar up the svn repository, "dtapublic".
+tar -c -v -z -h -f /hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/svn/dtapublic/${1}${5}${6}_${10}${13}${14}.files.tar.gz /hl/svnroots/dtapublic &>/hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/svn/dtapublic/${1}${5}${6}_${10}${13}${14}.files.log.txt
+#
+#Emit the svn repository "dtapublic" backup file MD5s to stdout so they go in the larger log.
+echo "===== FILE MD5 MESSAGE DIGESTS ====="
+cat /hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/svn/dtapublic/${1}${5}${6}_${10}${13}${14}.files.md5sum.txt
+#
+#Emit the svn repository "dtapublic" backup file SHA512s to stdout so they go in the larger log.
+echo "===== FILE SHA512 MESSAGE DIGESTS ====="
+cat /hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/svn/dtapublic/${1}${5}${6}_${10}${13}${14}.files.sha512sum.txt
+#
+#Emit the svn repository "dtapublic" backup log files to stdout so they go in the larger log.
+echo "===== FILES ====="
+cat /hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/svn/dtapublic/${1}${5}${6}_${10}${13}${14}.files.log.txt
+#
+#We want to be really careful with this next section because of
+#the recursive rm.  Want to be sure the directory exists.
+if [ -d /hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/svn/dtapublic ] ; then
+   cd /hl/baks/ashley_david_personal_01/full_monthly/${1}${5}${6}_${10}${13}${14}/svn/dtapublic
+   split -b 1000m ${1}${5}${6}_${10}${13}${14}.files.tar.gz
+
+   XFILES=`ls -1 x*`
+   for curfile in $XFILES
+   do
+      mv ${curfile} ${curfile}.bin
+   done
+   md5sum  ${1}${5}${6}_${10}${13}${14}.* x* >md5sums.txt
+   sha512sum ${1}${5}${6}_${10}${13}${14}.* x* >sha512sums.txt
+   rm ${1}${5}${6}_${10}${13}${14}.files.tar.gz
+   #
+   #Emit the backup file MD5s to stdout so they go in the larger log.
+   echo "===== BACKUP FILE MD5 MESSAGE DIGESTS ====="
+   cat md5sums.txt
+   #
+   #Emit the backup file SHA512s to stdout so they go in the larger log.
+   echo "===== BACKUP FILE SHA512 MESSAGE DIGESTS ====="
+   cat sha512sums.txt
+   #
+   #Commented out because now deleting old before making new.  There will
+   #be only one directory.
+   #cd ..
+   #rm -fR `ls -1t | sed -e '2,$!d'`
+fi
+#
+#Change to a safe working directory in case something goes wrong,
+#especially a failed cd followed by a mass delete.
+cd /root/cronjob_sandbox
+#
+#End of script.

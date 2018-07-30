@@ -1,0 +1,56 @@
+#!/bin/bash
+#-------------------------------------------------------------------------------------------------
+#$Header: svn://localhost/dtapublic/projs/dtats/trunk/projs/2016/20161029_server_scripts_automaint_cron/power_fail_shutdown 71 2016-11-05 11:07:06Z dashley $
+#-------------------------------------------------------------------------------------------------
+#This file is part of "Server Scripts, Automatic Maintenance, Cron", a set of scripts for
+#performing automatic periodic maintenance on a Linux server.
+#-------------------------------------------------------------------------------------------------
+#This source code and any program in which it is compiled/used is provided under the MIT License,
+#reproduced below.
+#-------------------------------------------------------------------------------------------------
+#Permission is hereby granted, free of charge, to any person obtaining a copy of
+#this software and associated documentation files(the "Software"), to deal in the
+#Software without restriction, including without limitation the rights to use,
+#copy, modify, merge, publish, distribute, sublicense, and / or sell copies of the
+#Software, and to permit persons to whom the Software is furnished to do so,
+#subject to the following conditions :
+#
+#The above copyright notice and this permission notice shall be included in all
+#copies or substantial portions of the Software.
+#
+#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+#AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+#SOFTWARE.
+#-------------------------------------------------------------------------------------------------
+#Powers off my Lenovo 11e server if the battery is too depleted.  Designed to be run every 1-5
+#minutes.  It has its own cron entry (in /etc/crontab) because there is no guarantee that the
+#Lenovo 11e built-in battery is robust enough to make it through the regular maintenance cron, so
+#can't safely put this logic in there.  Between interrupting maintenance tasks and a hard power
+#fail, the interruption is less of a threat than a hard power fail.
+#----------------------------------------------------------------------------------------------------
+#Delay for 120 seconds if the power_fail_occurred lockfile exists, indicating that we are restarting
+#after a previous power fail.  The reason for the delay is to guard against a missing battery or
+#a faulted battery -- if this occurs, it would be very hard to get the server running again without
+#rescue media.  The 120 seconds gives time to rename this script or kill the cron process(es) or
+#something so the system can be started and will not power off.
+if [ -f /etc/cron.custom/lockfiles/power_failure_occurred ] ; then
+   sleep 120
+   rm /etc/cron.custom/lockfiles/power_failure_occurred
+fi
+#----------------------------------------------------------------------------------------------------
+#If the file with information doesn't exist, shutdown.
+if [ ! -f /sys/class/power_supply/BAT1/capacity ] ; then
+   touch /etc/cron.custom/lockfiles/power_failure_occurred
+   poweroff
+fi
+#----------------------------------------------------------------------------------------------------
+#If the file contains unfavorable information, shutdown.
+if [ `cat /sys/class/power_supply/BAT1/capacity` -lt 30 ] ; then
+   touch /etc/cron.custom/lockfiles/power_failure_occurred
+   poweroff
+fi
+#----------------------------------------------------------------------------------------------------

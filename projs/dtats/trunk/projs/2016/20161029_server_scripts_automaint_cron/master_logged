@@ -1,0 +1,253 @@
+#!/bin/bash
+#-------------------------------------------------------------------------------------------------
+#$Header: svn://localhost/dtapublic/projs/dtats/trunk/projs/2016/20161029_server_scripts_automaint_cron/master_logged 71 2016-11-05 11:07:06Z dashley $
+#-------------------------------------------------------------------------------------------------
+#This file is part of "Server Scripts, Automatic Maintenance, Cron", a set of scripts for
+#performing automatic periodic maintenance on a Linux server.
+#-------------------------------------------------------------------------------------------------
+#This source code and any program in which it is compiled/used is provided under the MIT License,
+#reproduced below.
+#-------------------------------------------------------------------------------------------------
+#Permission is hereby granted, free of charge, to any person obtaining a copy of
+#this software and associated documentation files(the "Software"), to deal in the
+#Software without restriction, including without limitation the rights to use,
+#copy, modify, merge, publish, distribute, sublicense, and / or sell copies of the
+#Software, and to permit persons to whom the Software is furnished to do so,
+#subject to the following conditions :
+#
+#The above copyright notice and this permission notice shall be included in all
+#copies or substantial portions of the Software.
+#
+#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+#AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+#SOFTWARE.
+#-------------------------------------------------------------------------------------------------
+#This is the cron script, invoked hourly, to perform automatic
+#maintenance.  All stdout and stderr output is logged.
+#
+#The parameters that this script expects are:
+#
+#    1)Year (4-digit)
+#    2)Year (2-digit)
+#    3)Month (long text)
+#    4)Month (short text)
+#    5)Month (2-digit)
+#    6)Day of month (2-digit)
+#    7)Day of week (long text)
+#    8)Day of week (short text)
+#    9)Day of week (single digit)
+#   10)Hour (24-hour, 2-digit)
+#   11)Hour (12-hour, 2-digit)
+#   12)AM or PM, as a text string
+#   13)Minutes (2-digit)
+#   14)Seconds (2-digit)
+#
+#Change to a safe working directory in case something goes wrong,
+#especially a failed cd followed by a mass delete.
+cd /root/cronjob_sandbox
+#
+/etc/cron.custom/scripts/hline_thin
+echo "Automatic maintenance nominally beginning on $7, $1/$5/$6 at ${10}:${13}:${14}."
+/etc/cron.custom/scripts/hline_thin
+ACTUAL_TIMESTAMP=`date`
+echo -n "Automatic maintenance actually beginning at "
+echo -n ${ACTUAL_TIMESTAMP}
+echo "."
+/etc/cron.custom/scripts/hline_thin
+echo "This maintenance is scheduled hourly; and may include hourly, daily,"
+echo "weekly, and monthly maintenance activity (depending on the hour of the"
+echo "day, the day of the week, and the day of the month)."
+/etc/cron.custom/scripts/hline_thin
+#-----------------------------------------------------------------------------
+#Establish Booleans to decide which types of maintenance will not and
+#will be performed this run.
+#
+BOOLEAN_HOURLY=1
+echo    "HOURLY  maintenance WILL     be performed."
+
+if [ ${10} = "01" ] ; then
+   BOOLEAN_DAILY=1
+   echo "DAILY   maintenance WILL     be performed."
+else
+   BOOLEAN_DAILY=0
+   echo "DAILY   maintenance WILL NOT be performed."
+fi
+
+#
+#BOOLEAN_DAILY=1
+#Above line for debug only.
+#
+#Note below:  6 is Saturday, 0 is Sunday.
+#
+if [ $BOOLEAN_DAILY = "1" ] && [ ${9} = "6" ] ; then
+   BOOLEAN_WEEKLY=1
+   echo "WEEKLY  maintenance WILL     be performed."
+else
+   BOOLEAN_WEEKLY=0
+   echo "WEEKLY  maintenance WILL NOT be performed."
+fi
+
+if [ $BOOLEAN_DAILY = "1" ] && [ ${6} = "01" ] ; then
+   BOOLEAN_MONTHLY=1
+   echo "MONTHLY maintenance WILL     be performed."
+else
+   BOOLEAN_MONTHLY=0
+   echo "MONTHLY maintenance WILL NOT be performed."
+fi
+
+#Debug
+#BOOLEAN_WEEKLY=1
+
+/etc/cron.custom/scripts/hline_thin
+#-----------------------------------------------------------------------------
+#Loop through and do the hourly maintenance.  This involves finding
+#all the scripts ending in "hourly" and executing them in alphabetical
+#order.
+#
+#Note on below:  should investigate more reliable alternative using SED.
+if [ $BOOLEAN_HOURLY = "1" ] ; then
+   HOURLY_FILES=`ls -1 /etc/cron.custom/cronjobs/*|sort|grep .hourly`
+   for fname in $HOURLY_FILES
+   do
+     #Change to a safe working directory in case something goes wrong,
+     #especially a failed cd followed by a mass delete.
+     cd /root/cronjob_sandbox
+     #
+     echo "Executing" $fname "as part of hourly maintenance."
+     /etc/cron.custom/scripts/hline_thin
+     ${fname} ${1} ${2} ${3} ${4} ${5} ${6} ${7} ${8} ${9} ${10} ${11} ${12} ${13} ${14}
+     /etc/cron.custom/scripts/hline_thin
+     #
+     #Change to a safe working directory in case something goes wrong,
+     #especially a failed cd followed by a mass delete.
+     cd /root/cronjob_sandbox
+   done
+fi
+#-----------------------------------------------------------------------------
+#Prepare for the daily, weekly, and monthly maintenance.  This generally
+#involves shutting daemons that might interfere with maintenance activities.
+#Find all the scripts ending in "premaint" and execute them in alphabetical
+#order.
+#
+#Note on below:  should investigate more reliable alternative using SED.
+if [ $BOOLEAN_DAILY = "1" ] || [ $BOOLEAN_WEEKLY = "1" ] || [ $BOOLEAN_MONTHLY = "1" ] ; then
+   PREMAINT_FILES=`ls -1 /etc/cron.custom/cronjobs/*|sort|grep .premaint`
+   for fname in $PREMAINT_FILES
+   do
+     #Change to a safe working directory in case something goes wrong,
+     #especially a failed cd followed by a mass delete.
+     cd /root/cronjob_sandbox
+     #
+     echo "Executing" $fname "to prepare for daily, weekly, and monthly maintenance."
+     /etc/cron.custom/scripts/hline_thin
+     ${fname} ${1} ${2} ${3} ${4} ${5} ${6} ${7} ${8} ${9} ${10} ${11} ${12} ${13} ${14}
+     /etc/cron.custom/scripts/hline_thin
+     #
+     #Change to a safe working directory in case something goes wrong,
+     #especially a failed cd followed by a mass delete.
+     cd /root/cronjob_sandbox
+   done
+fi
+#-----------------------------------------------------------------------------
+#Do the daily maintenance.
+if [ $BOOLEAN_DAILY = "1" ] ; then
+   DAILY_FILES=`ls -1 /etc/cron.custom/cronjobs/*|sort|grep .daily`
+   for fname in $DAILY_FILES
+   do
+     #Change to a safe working directory in case something goes wrong,
+     #especially a failed cd followed by a mass delete.
+     cd /root/cronjob_sandbox
+     #
+     echo "Executing daily maintenance script" ${fname}.
+     /etc/cron.custom/scripts/hline_thin
+     ${fname} ${1} ${2} ${3} ${4} ${5} ${6} ${7} ${8} ${9} ${10} ${11} ${12} ${13} ${14}
+     /etc/cron.custom/scripts/hline_thin
+     #
+     #Change to a safe working directory in case something goes wrong,
+     #especially a failed cd followed by a mass delete.
+     cd /root/cronjob_sandbox
+   done
+fi
+#-----------------------------------------------------------------------------
+#Do the weekly maintenance.
+if [ $BOOLEAN_WEEKLY = "1" ] ; then
+   WEEKLY_FILES=`ls -1 /etc/cron.custom/cronjobs/*|sort|grep .weekly`
+   for fname in $WEEKLY_FILES
+   do
+     #Change to a safe working directory in case something goes wrong,
+     #especially a failed cd followed by a mass delete.
+     cd /root/cronjob_sandbox
+     #
+     echo "Executing weekly maintenance script" ${fname}.
+     /etc/cron.custom/scripts/hline_thin
+     ${fname} ${1} ${2} ${3} ${4} ${5} ${6} ${7} ${8} ${9} ${10} ${11} ${12} ${13} ${14}
+     /etc/cron.custom/scripts/hline_thin
+     #
+     #Change to a safe working directory in case something goes wrong,
+     #especially a failed cd followed by a mass delete.
+     cd /root/cronjob_sandbox
+   done
+fi
+#-----------------------------------------------------------------------------
+#Do the monthly maintenance.
+if [ $BOOLEAN_MONTHLY = "1" ] ; then
+   MONTHLY_FILES=`ls -1 /etc/cron.custom/cronjobs/*|sort|grep .monthly`
+   for fname in $MONTHLY_FILES
+   do
+     #Change to a safe working directory in case something goes wrong,
+     #especially a failed cd followed by a mass delete.
+     cd /root/cronjob_sandbox
+     #
+     echo "Executing monthly maintenance script" ${fname}.
+     /etc/cron.custom/scripts/hline_thin
+     ${fname} ${1} ${2} ${3} ${4} ${5} ${6} ${7} ${8} ${9} ${10} ${11} ${12} ${13} ${14}
+     /etc/cron.custom/scripts/hline_thin
+     #
+     #Change to a safe working directory in case something goes wrong,
+     #especially a failed cd followed by a mass delete.
+     cd /root/cronjob_sandbox
+   done
+fi
+#-----------------------------------------------------------------------------
+#Recover from the daily, weekly, and monthly maintenance.  This generally
+#involves restarting daemons.  Find all the scripts ending in "postmaint"
+#and execute them in alphabetical order.
+#
+#Note on below:  should investigate more reliable alternative using SED.
+if [ $BOOLEAN_DAILY = "1" ] || [ $BOOLEAN_WEEKLY = "1" ] || [ $BOOLEAN_MONTHLY = "1" ] ; then
+   POSTMAINT_FILES=`ls -1 /etc/cron.custom/cronjobs/*|sort|grep .postmaint`
+   for fname in $POSTMAINT_FILES
+   do
+     #Change to a safe working directory in case something goes wrong,
+     #especially a failed cd followed by a mass delete.
+     cd /root/cronjob_sandbox
+     #
+     echo "Executing" $fname "to recover from daily, weekly, and monthly maintenance."
+     /etc/cron.custom/scripts/hline_thin
+     ${fname} ${1} ${2} ${3} ${4} ${5} ${6} ${7} ${8} ${9} ${10} ${11} ${12} ${13} ${14}
+     /etc/cron.custom/scripts/hline_thin
+     #
+     #Change to a safe working directory in case something goes wrong,
+     #especially a failed cd followed by a mass delete.
+     cd /root/cronjob_sandbox
+   done
+fi
+#-----------------------------------------------------------------------------
+#Change to a safe working directory in case something goes wrong,
+#especially a failed cd followed by a mass delete.
+cd /root/cronjob_sandbox
+#
+ACTUAL_TIMESTAMP=`date`
+echo -n "Automatic maintenance actually ending at "
+echo -n ${ACTUAL_TIMESTAMP}
+echo "."
+/etc/cron.custom/scripts/hline_thin
+#hline_thick no longer necessary because not concatening logs together, as
+#these scripts were changed to be more SSD-friendly.
+#/etc/cron.custom/scripts/hline_thick
+#
+#End of script.
